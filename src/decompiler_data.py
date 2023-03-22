@@ -428,6 +428,8 @@ class DecompilerData(metaclass=Singleton):
             self.initial_state.init_work_group(dim, g_id_dim, self.versions[g_id_dim], self.versions[v_dim])
             self.versions[g_id_dim] += 1
             self.versions[v_dim] += 1
+        self.initial_state.init_exec(self.versions["exec"])
+        self.versions["exec"] += 1
 
     def process_initial_state(self):
         lp, hp = ("s6", "s7") if self.config_data.usesetup else ("s4", "s5")
