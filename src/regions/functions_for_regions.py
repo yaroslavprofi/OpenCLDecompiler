@@ -5,6 +5,7 @@ from src.register_type import RegisterType
 from src.decompiler_data import DecompilerData
 from src.region_type import RegionType
 from src.regions.region import Region
+from src.templates.template import Pipeline
 
 
 def add_parent_and_child(before_r, next_r, region, prev_child, prev_parent):
@@ -145,6 +146,82 @@ def make_region_graph_from_cfg():
                 decompiler_data.set_starts_regions(curr_node, region)
                 decompiler_data.set_ends_regions(curr_node, region)
                 flag_of_continue = False
+                for c_p in curr_node.parent:
+                    if c_p not in visited and curr_node not in decompiler_data.loops:
+                        flag_of_continue = True
+                        break
+                if flag_of_continue:
+                    visited.remove(curr_node)
+                    continue
+                for c_p in curr_node.parent:
+                    if c_p in visited:
+                        if decompiler_data.ends_regions.get(c_p) is not None:
+                            parent = decompiler_data.ends_regions[c_p]
+                        else:
+                            parent = decompiler_data.ends_regions[curr_node.parent[0].children[0]]
+                        parent.add_child(region)
+                        region.add_parent(parent)
+            for child in curr_node.children:
+                if child not in visited:
+                    q.append(child)
+                else:
+                    region.add_child(decompiler_data.starts_regions[child])
+                    decompiler_data.set_parent_for_starts_regions(child, region)
+
+
+def make_region_graph_from_cfg_v2():
+    decompiler_data = DecompilerData()
+    curr_node = decompiler_data.cfg
+    region = Region(RegionType.LINEAR, curr_node)
+    decompiler_data.set_starts_regions(curr_node, region)
+    decompiler_data.set_ends_regions(curr_node, region)
+    visited = [curr_node]
+    q = deque()
+    q.append(curr_node.children[0])
+    while q:
+        curr_node = q.popleft()
+        if curr_node not in visited:
+            visited.append(curr_node)
+            if curr_node in decompiler_data.loops or curr_node in decompiler_data.back_edges:
+                region_type = RegionType.BACK_EDGE
+                if curr_node in decompiler_data.loops:
+                    region_type = RegionType.START_LOOP
+                region = Region(region_type, curr_node)
+                decompiler_data.set_starts_regions(curr_node, region)
+                decompiler_data.set_ends_regions(curr_node, region)
+                for c_p in curr_node.parent:
+                    if c_p in visited:
+                        if decompiler_data.ends_regions.get(c_p) is not None:
+                            parent = decompiler_data.ends_regions[c_p]
+                        else:
+                            parent = decompiler_data.ends_regions[curr_node.parent[0].children[0]]
+                        parent.add_child(region)
+                        region.add_parent(parent)
+            elif len(curr_node.parent) == 1 and len(curr_node.children) <= 1:
+                if curr_node.state.registers["exec"].version != curr_node.parent[0].state.registers["exec"].version:
+                    region = Region(RegionType.BASIC, curr_node)
+                    decompiler_data.set_starts_regions(curr_node, region)
+                    decompiler_data.set_ends_regions(curr_node, region)
+                    parent = decompiler_data.ends_regions[curr_node.parent[0]]
+                    parent.add_child(region)
+                    region.add_parent(parent)
+                elif decompiler_data.ends_regions[curr_node.parent[0]].type == RegionType.LINEAR:
+                    region = decompiler_data.ends_regions.pop(curr_node.parent[0])
+                    region.end = curr_node
+                    decompiler_data.set_ends_regions(curr_node, region)
+                else:
+                    region = Region(RegionType.LINEAR, curr_node)
+                    decompiler_data.set_starts_regions(curr_node, region)
+                    decompiler_data.set_ends_regions(curr_node, region)
+                    parent = decompiler_data.ends_regions[curr_node.parent[0]]
+                    parent.add_child(region)
+                    region.add_parent(parent)
+            else:
+                region = Region(RegionType.BASIC, curr_node)
+                decompiler_data.set_starts_regions(curr_node, region)
+                decompiler_data.set_ends_regions(curr_node, region)
+                flag_of_continue = False
+
                 for c_p in curr_node.parent:
                     if c_p not in visited and curr_node not in decompiler_data.loops:
                         flag_of_continue = True
@@ -408,6 +485,221 @@ def preprocess_if_and_if_else(curr_region, visited, start_region, q):
         q.append(start_region)
         visited = []
     return visited, q, start_region
+
+
+# def if_else_template_1(region: Region) -> Region:
+#     try:
+#         before = region.parent
+#         ba_1 = region
+#         li_1 = ba_1.children[0]
+#         ba_2 = li_1.children[0]
+#         li_2 = ba_2.children[0]
+#         ba_3 = li_2.children[0]
+#         li_3 = ba_3.children[0]
+#         ba_4 = li_3.children[0]
+#         after = ba_4.children
+#         if ba_1.type == RegionType.BASIC and \
+#                 li_1.type == RegionType.LINEAR and \
+#                 ba_2.type == RegionType.BASIC and \
+#                 li_2.type == RegionType.LINEAR and \
+#                 ba_3.type == RegionType.BASIC and \
+#                 li_3.type == RegionType.LINEAR and \
+#                 ba_4.type == RegionType.BASIC:
+#             value = ""
+#             value += li_2.value
+#             value += "if (" + ba_1.start.state.registers["exec"].val.and_chain[0] + ") {\n"
+#             value += '\n'.join(["\t" + row for row in li_1.value.split('\n')[:-1]]) + '\n'
+#             value += "} else {\n"
+#             value += '\n'.join(["\t" + row for row in li_3.value.split('\n')[:-1]]) + '\n'
+#             value += "}\n"
+#
+#             if_else_region = Region(RegionType.LINEAR, None)
+#             if_else_region.value = value
+#
+#             if len(before) > 0:
+#                 before[0].children = [if_else_region]
+#             if_else_region.parent = before
+#             if_else_region.children = after
+#             if len(after) > 0:
+#                 after[0].parent = [if_else_region]
+#
+#             return if_else_region
+#
+#     except Exception:
+#         return region
+#     return region
+#
+#
+# def if_else_template_2(region: Region) -> Region:
+#     try:
+#         before = region.parent
+#         ba_1 = region
+#         li_1 = ba_1.children[0]
+#         ba_2 = li_1.children[0]
+#         ba_3 = ba_2.children[0]
+#         li_3 = ba_3.children[0]
+#         ba_4 = li_3.children[0]
+#         after = ba_4.children
+#         if ba_1.type == RegionType.BASIC and \
+#                 li_1.type == RegionType.LINEAR and \
+#                 ba_2.type == RegionType.BASIC and \
+#                 ba_3.type == RegionType.BASIC and \
+#                 li_3.type == RegionType.LINEAR and \
+#                 ba_4.type == RegionType.BASIC:
+#             value = ""
+#             value += "if (" + ba_1.start.state.registers["exec"].val.and_chain[0] + ") {\n"
+#             value += '\n'.join(["\t" + row for row in li_1.value.split('\n')[:-1]]) + '\n'
+#             value += "} else {\n"
+#             value += '\n'.join(["\t" + row for row in li_3.value.split('\n')[:-1]]) + '\n'
+#             value += "}\n"
+#
+#             if_else_region = Region(RegionType.LINEAR, None)
+#             if_else_region.value = value
+#
+#             if len(before) > 0:
+#                 before[0].children = [if_else_region]
+#             if_else_region.parent = before
+#             if_else_region.children = after
+#             if len(after) > 0:
+#                 after[0].parent = [if_else_region]
+#
+#             return if_else_region
+#
+#     except Exception:
+#         return region
+#     return region
+#
+#
+# def if_else_template_3(region: Region) -> Region:
+#     try:
+#         before = region.parent
+#         ba_1 = region
+#         li_1, li_2 = ba_1.children
+#         ba_2 = li_1.children[0]
+#         ba_2_test = li_2.children[0]
+#         after = ba_2.children
+#         if ba_1.type == RegionType.BASIC and \
+#                 li_1.type == RegionType.LINEAR and \
+#                 li_2.type == RegionType.LINEAR and \
+#                 ba_2.type == RegionType.BASIC and \
+#                 ba_2 == ba_2_test:
+#
+#             statement = ba_1.start.state.registers["scc"].val
+#             if "scc1" in ba_1.start.instruction[0]:
+#                 statement = "!(" + statement + ")"
+#             value = ""
+#             value += "if (" + statement + ") {\n"
+#             value += '\n'.join(["\t" + row for row in li_1.value.split('\n')[:-1]]) + '\n'
+#             value += "} else {\n"
+#             value += '\n'.join(["\t" + row for row in li_2.value.split('\n')[:-1]]) + '\n'
+#             value += "}\n"
+#
+#             if_else_region = Region(RegionType.LINEAR, None)
+#             if_else_region.value = value
+#
+#             if len(before) > 0:
+#                 before[0].children = [if_else_region]
+#             if_else_region.parent = before
+#             if_else_region.children = after
+#             if len(after) > 0:
+#                 after[0].parent = [if_else_region]
+#
+#             return if_else_region
+#
+#     except Exception:
+#         return region
+#     return region
+#
+#
+# def if_template_2(region: Region) -> Region:
+#     try:
+#         before = region.parent
+#         ba_1 = region
+#         li_1 = ba_1.children[0]
+#         after = li_1.children
+#         if ba_1.type == RegionType.BASIC and \
+#                 li_1.type == RegionType.LINEAR and \
+#                 len(ba_1.start.state.registers["exec"].val.and_chain) > \
+#                 len(before[0].end.state.registers["exec"].val.and_chain) and \
+#                 ba_1.start.state.registers["exec"].val.and_chain[0][0] != "~" and \
+#                 after == []:
+#             value = ""
+#             value += "if (" + ba_1.start.state.registers["exec"].val.and_chain[0] + ") {\n"
+#             value += '\n'.join(["\t" + row for row in li_1.value.split('\n')[:-1]]) + '\n'
+#             value += "}\n"
+#
+#             if_region = Region(RegionType.LINEAR, None)
+#             if_region.value = value
+#
+#             if len(before) > 0:
+#                 before[0].children = [if_region]
+#             if_region.parent = before
+#
+#             return if_region
+#
+#     except Exception:
+#         return region
+#     return region
+#
+#
+# def if_template_1(region: Region) -> Region:
+#     try:
+#         before = region.parent
+#         ba_1 = region
+#         li_1 = ba_1.children[0]
+#         ba_2 = li_1.children[0]
+#         after = ba_2.children
+#         if ba_1.type == RegionType.BASIC and \
+#                 li_1.type == RegionType.PROCESSED and \
+#                 ba_2.type == RegionType.BASIC:
+#             statement_reg = "scc" if "scc" in ba_1.start.instruction[0] else "exec"
+#             if statement_reg == "exec" and not (
+#                     len(ba_1.start.state.registers["exec"].val.and_chain) >
+#                     len(before[0].end.state.registers["exec"].val.and_chain) and
+#                     ba_1.start.state.registers["exec"].val.and_chain[0][0] != "~"):
+#                 return region
+#             decompiler_data = DecompilerData()
+#             if_region = Region(RegionType.PROCESSED, None)
+#             for key in decompiler_data.variables.keys():
+#                 reg = key[:key.find("_")]
+#                 if region.start.parent[0].state.registers[reg].version == key \
+#                         and decompiler_data.variables[key] in decompiler_data.names_of_vars.keys() \
+#                         and decompiler_data.variables[key] != region.start.parent[0].state.registers[reg].val:
+#                     if "exec" in region.start.parent[0].state.registers[reg].val:
+#                         continue
+#                     if_region.value += decompiler_data.variables[key] + " = " \
+#                                   + region.start.parent[0].state.registers[reg].val + ";\n"
+#             val = ba_1.start.state.registers[statement_reg].val
+#             if_region.value += "if (" + ((val
+#                                 if "scc0" in ba_1.start.instruction[0]
+#                                 else "!(" + val + ")")
+#                                if statement_reg == "scc"
+#                                else val.and_chain[0]) + ") {\n"
+#             if_region.value += '\n'.join(["\t" + row for row in li_1.value.split('\n')[:-1]]) + '\n'
+#             if_region.value += "}\n"
+#
+#             if len(before) > 0:
+#                 before[0].children = [if_region]
+#             if_region.parent = before
+#             if_region.children = after
+#             if len(after) > 0:
+#                 after[0].parent = [if_region]
+#
+#             return if_region
+#
+#     except Exception:
+#         return region
+#     return region
+
+
+def process_region_graph_v2(region: Region, visited: set) -> Region:
+    visited.add(region)
+
+    for child in region.children:
+        if child not in visited:
+            process_region_graph_v2(child, visited)
+
+    return Pipeline().process(region)
 
 
 def process_region_graph_dfs(region: Region, visited: set) -> Region:

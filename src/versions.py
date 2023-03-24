@@ -7,11 +7,11 @@ from src.register import check_and_split_regs_range_to_full_list
 from src.register_type import RegisterType
 
 
-def find_max_and_prev_versions(curr_node):
+def find_max_and_prev_versions(curr_node, parents):
     for reg in curr_node.parent[0].state.registers:
         prev_versions_of_reg = set()
         max_version = 0
-        for parent in curr_node.parent:
+        for parent in parents:
             if parent.state.registers.get(reg) is not None \
                     and parent.state.registers[reg].version is not None:
                 parent_version = parent.state.registers[reg].version

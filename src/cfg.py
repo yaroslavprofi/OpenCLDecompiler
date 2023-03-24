@@ -6,7 +6,8 @@ from src.node_processor import to_opencl
 from src.operation_status import OperationStatus
 
 
-def make_cfg_node(instruction, last_node_state, last_node):
+def make_cfg_node(row, last_node, last_node_state):
+    instruction = row.strip().replace(',', ' ').split()
     for i, instr in enumerate(instruction):
         if instr == "vcc_lo":
             instruction[i] = "vcc"

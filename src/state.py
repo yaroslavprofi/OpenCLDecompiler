@@ -1,4 +1,5 @@
 from src.integrity import Integrity
+from src.logical_variable import ExecCondition
 from src.register import Register
 from src.register_type import RegisterType
 
@@ -75,4 +76,5 @@ class State:
 
     def init_exec(self, version):
         self.registers["exec"] = Register("0xffffffffffffffff", RegisterType.UNKNOWN, Integrity.ENTIRE)
+        self.registers["exec"].exec_condition = ExecCondition([])
         self.registers["exec"].add_version("exec", version)

@@ -13,9 +13,10 @@ from src.utils import ConfigData, DriverFormat
 
 
 def set_reg_value(node, new_value, to_reg, from_regs, data_type,
-                  reg_type=RegisterType.UNKNOWN, reg_entire=Integrity.ENTIRE):
+                  exec_condition=None, reg_type=RegisterType.UNKNOWN, reg_entire=Integrity.ENTIRE):
     decompiler_data = DecompilerData()
     node.state.registers[to_reg] = Register(new_value, reg_type, reg_entire)
+    node.state.registers[to_reg].exec_condition = exec_condition
     decompiler_data.make_version(node.state, to_reg)
     if to_reg in from_regs:
         node.state.registers[to_reg].make_prev()
