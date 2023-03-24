@@ -1,3 +1,5 @@
+import copy
+
 from src.base_instruction import BaseInstruction
 from src.decompiler_data import set_reg_value
 from src.global_data import get_gdata_offset
@@ -18,8 +20,10 @@ class SMov(BaseInstruction):
 
     def to_fill_node(self):
         if self.suffix in ['b32', 'b64']:
+            new_exec_condition = None
             if self.node.state.registers.get(self.ssrc0) is not None:
                 new_value = self.node.state.registers[self.ssrc0].val
+                new_exec_condition = copy.deepcopy(self.node.state.registers[self.ssrc0].exec_condition)
                 reg_type = self.node.state.registers[self.ssrc0].type
                 data_type = self.node.state.registers[self.ssrc0].data_type
             else:
@@ -30,5 +34,7 @@ class SMov(BaseInstruction):
                     new_value = self.ssrc0
                     reg_type = RegisterType.INT32
                 data_type = self.suffix
-            return set_reg_value(self.node, new_value, self.sdst, [], data_type, reg_type=reg_type)
+            return set_reg_value(self.node, new_value, self.sdst, [], data_type,
+                                 exec_condition=new_exec_condition,
+                                 reg_type=reg_type)
         return super().to_fill_node()

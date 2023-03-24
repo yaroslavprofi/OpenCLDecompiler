@@ -406,6 +406,7 @@ class DecompilerData(metaclass=Singleton):
             output = simplify_opencl_statement(output)
             output = output.replace("___", ".")
         self.output_file.write(output)
+        self.output_file.flush()
 
     def make_version(self, state, reg):
         if reg not in self.versions:

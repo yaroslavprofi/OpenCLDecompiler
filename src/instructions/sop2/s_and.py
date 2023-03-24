@@ -21,7 +21,7 @@ class SAnd(BaseInstruction):
         if self.suffix in ['b32', 'b64']:
             if self.ssrc0 == "exec":
                 new_exec_condition = self.node.state.registers[self.ssrc0].exec_condition & \
-                                     self.node.state.registers[self.ssrc1].exec_condition
+                                     self.node.state.registers[self.ssrc1].val
                 reg_entire = self.node.state.registers[self.ssrc0].integrity
                 return set_reg_value(self.node, new_exec_condition.top(), self.sdst, [self.ssrc0, self.ssrc1],
                                      self.suffix,

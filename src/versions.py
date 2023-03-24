@@ -9,6 +9,9 @@ from src.register_type import RegisterType
 
 def find_max_and_prev_versions(curr_node, parents):
     for reg in curr_node.parent[0].state.registers:
+        if curr_node.state.registers[reg] is not None and \
+                curr_node.state.registers[reg].exec_condition is not None:
+            continue
         prev_versions_of_reg = set()
         max_version = 0
         for parent in parents:
