@@ -118,13 +118,8 @@ def make_output_from_part_of_if_else(region, indent, num_of_branch):
                      or r_node_parent.state.registers[reg].version !=
                      region.start.start.parent[0].state.registers[reg].version):
             to_print[decompiler_data.variables[key].removeprefix("*")] = r_node_parent.state.registers[reg].val
-    queue = list(to_print.keys())
-    while len(queue) > 0:
-        i = 0
-        while any(var in to_print[queue[i]] for var in queue):
-            i += 1
-        decompiler_data.write(f"{indent}    {queue[i]} = {to_print[queue[i]]};\n")
-        queue.remove(queue[i])
+    for var, value in to_print.items():
+        decompiler_data.write(f"{indent}    {var} = {value};\n")
 
 
 def make_output_from_branch_variable(region, indent):

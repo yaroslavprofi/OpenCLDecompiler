@@ -16,20 +16,27 @@ def process_single_instruction(exec_stack, row, last_node):
     curr_node = make_cfg_node(row, last_node)
     if not check_realisation_for_node(curr_node, row):
         return None
+    last_node.add_child(curr_node)
 
     prev_exec = last_node.state.registers["exec"]
     curr_exec = curr_node.state.registers["exec"]
     parents = curr_node.parent[:]
     if curr_exec.version != prev_exec.version:
-        if len(curr_exec.exec_condition.and_chain) > \
+        if len(curr_exec.exec_condition.and_chain) >= \
                 len(prev_exec.exec_condition.and_chain):
-            exec_stack.append(curr_node)
+            if len(curr_exec.exec_condition.and_chain) == \
+                    len(prev_exec.exec_condition.and_chain):
+                parents.append(exec_stack.pop())
+            exec_stack.append(last_node)
         else:
             while len(exec_stack) > 0:
                 parents.append(exec_stack.pop())
-    if last_node is not None and last_node.instruction != "branch" and curr_node not in last_node.children:
-        last_node.add_child(curr_node)
+    # if last_node is not None and last_node.instruction != "branch" and curr_node not in last_node.children:
     if len(parents) > 1:
+        # if 's_or_b32' in row:
+        #     pass
+        #     # find_max_and_prev_versions(curr_node, [parents[0], parents[1].parent[0]])
+        # else:
         find_max_and_prev_versions(curr_node, parents)
     return curr_node
 
@@ -79,8 +86,8 @@ def process_src(name_of_program, config_data, set_of_instructions, set_of_global
     decompiler_data.remove_unusable_versions()
 
     make_region_graph_from_cfg_v2()
-    decompiler_data.improve_cfg = process_region_graph_v2(
-        decompiler_data.starts_regions[decompiler_data.cfg], set({}))
+    start = decompiler_data.starts_regions[decompiler_data.cfg]
+    decompiler_data.improve_cfg = process_region_graph_v2(start, set({}))
     if decompiler_data.checked_variables != {} or decompiler_data.variables != {}:
         change_values()
     create_opencl_body()

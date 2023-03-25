@@ -1,4 +1,5 @@
 from src.instructions.sopp.s_cbranch import SCbranch
+from src.logical_variable import ExecCondition
 
 
 class SCbranchScc1(SCbranch):
@@ -8,5 +9,6 @@ class SCbranchScc1(SCbranch):
         return self.node
 
     def to_print(self):
-        self.output_string = self.node.state.registers["scc"].val
+        # if cond == True, then we are not in if branch, thus we need to invert the condition to enter if branch
+        self.output_string = ExecCondition.make_not(self.node.state.registers["scc"].val)
         return self.output_string

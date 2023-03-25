@@ -30,3 +30,8 @@ class SXor(BaseInstruction):
                                  exec_condition=new_exec_condition,
                                  reg_entire=reg_entire)
         return super().to_fill_node()
+
+    def to_print(self):
+        if self.sdst == "exec":
+            self.output_string = self.node.state.registers["exec"].exec_condition.top()
+            return self.output_string

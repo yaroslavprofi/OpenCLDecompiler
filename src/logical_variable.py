@@ -10,7 +10,11 @@ class ExecCondition:
 
     def __xor__(self, other: 'ExecCondition') -> 'ExecCondition':
         longer = self if len(self.and_chain) > len(other.and_chain) else other
-        return ExecCondition(["~" + longer.and_chain[0]] + longer.and_chain[1:])
+        return ExecCondition([self.make_not(longer.and_chain[0])] + longer.and_chain[1:])
+
+    @staticmethod
+    def make_not(cond: str) -> str:
+        return "!(" + cond + ")"
 
     def top(self) -> str:
         if self.and_chain:
